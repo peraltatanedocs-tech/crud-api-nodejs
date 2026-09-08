@@ -46,11 +46,10 @@ class Batch {
   });
 }
 
-// Attendance Model
+// Attendance Model - Updated para flexible
 class Attendance {
   int id;
-  int staffId;
-  String staffName;
+  String workerName; // Custom name input, hindi fixed
   DateTime date;
   TimeOfDay? timeIn;
   TimeOfDay? timeOut;
@@ -59,8 +58,7 @@ class Attendance {
   
   Attendance({
     required this.id,
-    required this.staffId,
-    required this.staffName,
+    required this.workerName,
     required this.date,
     this.timeIn,
     this.timeOut,
@@ -81,12 +79,11 @@ final List<Batch> sampleBatches = [
   Batch(id: 2, code: 'BATCH-002', status: 'Completed', numberOfBirds: 900),
 ];
 
-// Attendance data
+// Attendance data - Updated with flexible names
 final List<Attendance> attendanceRecords = [
   Attendance(
     id: 1,
-    staffId: 1,
-    staffName: 'Juan Dela Cruz',
+    workerName: 'Juan Dela Cruz',
     date: DateTime.now(),
     timeIn: const TimeOfDay(hour: 7, minute: 30),
     timeOut: const TimeOfDay(hour: 17, minute: 0),
@@ -94,8 +91,7 @@ final List<Attendance> attendanceRecords = [
   ),
   Attendance(
     id: 2,
-    staffId: 2,
-    staffName: 'Maria Santos',
+    workerName: 'Maria Santos',
     date: DateTime.now(),
     timeIn: const TimeOfDay(hour: 8, minute: 15),
     timeOut: null,
@@ -103,8 +99,7 @@ final List<Attendance> attendanceRecords = [
   ),
   Attendance(
     id: 3,
-    staffId: 3,
-    staffName: 'Pedro Rodriguez',
+    workerName: 'Pedro Rodriguez',
     date: DateTime.now(),
     timeIn: null,
     timeOut: null,
@@ -222,6 +217,8 @@ class HomeShell extends StatefulWidget {
 enum AppSection {
   dashboard,
   attendance,
+  timeIn,
+  timeOut,
   batches,
   production,
   feed,
@@ -245,6 +242,10 @@ class _HomeShellState extends State<HomeShell> {
         return DashboardPage(onNavigate: (s) => _navigate(s));
       case AppSection.attendance:
         return const AttendanceListPage();
+      case AppSection.timeIn:
+        return const TimeInPage();
+      case AppSection.timeOut:
+        return const TimeOutPage();
       case AppSection.batches:
         return const PlaceholderPage(title: 'Flock / Batch Records');
       case AppSection.production:
@@ -275,7 +276,9 @@ class _HomeShellState extends State<HomeShell> {
       ),
       destinations: const [
         NavigationRailDestination(icon: Icon(Icons.dashboard), label: Text('Dashboard')),
-        NavigationRailDestination(icon: Icon(Icons.person), label: Text('Attendance')),
+        NavigationRailDestination(icon: Icon(Icons.person), label: Text('Attendance List')),
+        NavigationRailDestination(icon: Icon(Icons.login), label: Text('Time In')),
+        NavigationRailDestination(icon: Icon(Icons.logout), label: Text('Time Out')),
         NavigationRailDestination(icon: Icon(Icons.layers), label: Text('Batches')),
         NavigationRailDestination(icon: Icon(Icons.egg), label: Text('Production')),
         NavigationRailDestination(icon: Icon(Icons.fastfood), label: Text('Feed')),
@@ -313,7 +316,7 @@ class _HomeShellState extends State<HomeShell> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-          const DrawerHeader(child: Text('QPLC Layer Tayabas')),
+            const DrawerHeader(child: Text('QPLC Layer Tayabas')),
             ListTile(
                 title: const Text('Dashboard'),
                 leading: const Icon(Icons.dashboard),
@@ -322,11 +325,25 @@ class _HomeShellState extends State<HomeShell> {
                   _navigate(AppSection.dashboard);
                 }),
             ListTile(
-                title: const Text('Attendance'),
+                title: const Text('Attendance List'),
                 leading: const Icon(Icons.person),
                 onTap: () {
                   Navigator.pop(context);
                   _navigate(AppSection.attendance);
+                }),
+            ListTile(
+                title: const Text('Time In'),
+                leading: const Icon(Icons.login),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigate(AppSection.timeIn);
+                }),
+            ListTile(
+                title: const Text('Time Out'),
+                leading: const Icon(Icons.logout),
+                onTap: () {
+                  Navigator.pop(context);
+                  _navigate(AppSection.timeOut);
                 }),
             ListTile(
                 title: const Text('Batches'),
@@ -375,8 +392,13 @@ class DashboardPage extends StatelessWidget {
   final void Function(AppSection) onNavigate;
   const DashboardPage({super.key, required this.onNavigate});
 
-  int get totalStaff => sampleStaff.length;
-  int get presentToday => attendanceRecords.where((a) => a.status == 'Present').length;
+  int get totalStaff => attendanceRecords.length;
+  int get presentToday => attendanceRecords.where((a) {
+    final isSameDate = a.date.year == DateTime.now().year &&
+        a.date.month == DateTime.now().month &&
+        a.date.day == DateTime.now().day;
+    return isSameDate && a.status == 'Present';
+  }).length;
   int get activeBatches => sampleBatches.where((b) => b.status == 'Active').length;
   int get eggsToday => sampleProduction.fold<int>(0, (p, e) {
     final dt = e['date'] as DateTime;
@@ -391,7 +413,7 @@ class DashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cards = [
-      _SummaryCard(title: 'Total Staff', value: '$totalStaff', color: Colors.green),
+      _SummaryCard(title: 'Total Workers', value: '$totalStaff', color: Colors.green),
       _SummaryCard(title: 'Present Today', value: '$presentToday', color: Colors.blue),
       _SummaryCard(title: 'Active Batches', value: '$activeBatches', color: Colors.orange),
       _SummaryCard(title: 'Eggs Today', value: '$eggsToday', color: Colors.brown),
@@ -406,9 +428,9 @@ class DashboardPage extends StatelessWidget {
         Row(
           children: [
             ElevatedButton.icon(
-                onPressed: () => onNavigate(AppSection.attendance), icon: const Icon(Icons.person_add), label: const Text('Add Attendance')),
+                onPressed: () => onNavigate(AppSection.timeIn), icon: const Icon(Icons.login), label: const Text('Time In')),
             const SizedBox(width: 8),
-            ElevatedButton.icon(onPressed: () => onNavigate(AppSection.production), icon: const Icon(Icons.add), label: const Text('Add Production')),
+            ElevatedButton.icon(onPressed: () => onNavigate(AppSection.timeOut), icon: const Icon(Icons.logout), label: const Text('Time Out')),
             const Spacer(),
             const Text('Dashboard', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))
           ],
@@ -522,7 +544,7 @@ class _AttendanceListPageState extends State<AttendanceListPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Staff Attendance', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+              const Text('Attendance Records', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
               ElevatedButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
@@ -530,7 +552,7 @@ class _AttendanceListPageState extends State<AttendanceListPage> {
                   ).then((_) => setState(() {}));
                 },
                 icon: const Icon(Icons.add),
-                label: const Text('Add Attendance'),
+                label: const Text('Add Record'),
               ),
             ],
           ),
@@ -554,7 +576,7 @@ class _AttendanceListPageState extends State<AttendanceListPage> {
                                 context: context,
                                 initialDate: _selectedDate,
                                 firstDate: DateTime(2020),
-                                lastDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
                               );
                               if (date != null) {
                                 setState(() => _selectedDate = date);
@@ -608,11 +630,11 @@ class _AttendanceListPageState extends State<AttendanceListPage> {
                         child: ListTile(
                           leading: CircleAvatar(
                             backgroundColor: statusColor,
-                            child: Text(record.staffName[0], style: const TextStyle(color: Colors.white)),
+                            child: Text(record.workerName[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
                           ),
-                          title: Text(record.staffName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(record.workerName, style: const TextStyle(fontWeight: FontWeight.bold)),
                           subtitle: Text(
-                            'In: ${record.timeIn?.format(ctx) ?? 'N/A'} | Out: ${record.timeOut?.format(ctx) ?? 'N/A'}',
+                            'In: ${record.timeIn?.format(ctx) ?? 'N/A'} | Out: ${record.timeOut?.format(ctx) ?? 'N/A'} | Status: ${record.status}',
                           ),
                           trailing: PopupMenuButton(
                             itemBuilder: (ctx) => [
@@ -644,7 +666,306 @@ class _AttendanceListPageState extends State<AttendanceListPage> {
   }
 }
 
-// Add Attendance Page
+// TIME IN PAGE - Separate page para sa clock in
+class TimeInPage extends StatefulWidget {
+  const TimeInPage({super.key});
+
+  @override
+  State<TimeInPage> createState() => _TimeInPageState();
+}
+
+class _TimeInPageState extends State<TimeInPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+
+  void _recordTimeIn() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final workerName = _nameCtrl.text.trim();
+    
+    // Check kung may existing record para sa worker ngayong araw
+    final existingRecord = attendanceRecords.firstWhere(
+      (a) => a.workerName.toLowerCase() == workerName.toLowerCase() &&
+          a.date.year == DateTime.now().year &&
+          a.date.month == DateTime.now().month &&
+          a.date.day == DateTime.now().day,
+      orElse: () => Attendance(
+        id: attendanceRecords.length + 1,
+        workerName: workerName,
+        date: DateTime.now(),
+        timeIn: null,
+      ),
+    );
+
+    if (attendanceRecords.contains(existingRecord)) {
+      // Update existing record
+      existingRecord.timeIn = _selectedTime;
+      existingRecord.status = 'Present';
+    } else {
+      // Create new record
+      attendanceRecords.add(Attendance(
+        id: attendanceRecords.length + 1,
+        workerName: workerName,
+        date: DateTime.now(),
+        timeIn: _selectedTime,
+        status: 'Present',
+      ));
+    }
+
+    _nameCtrl.clear();
+    setState(() => _selectedTime = TimeOfDay.now());
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$workerName - Time In recorded at ${_selectedTime.format(context)}')),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: Card(
+          elevation: 8,
+          child: SizedBox(
+            width: 500,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.login, size: 48, color: Colors.green),
+                    const SizedBox(height: 16),
+                    const Text('TIME IN', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 24),
+
+                    // Worker Name Input
+                    TextFormField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Worker Name',
+                        hintText: 'Enter your name',
+                        prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Time Display
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text('Current Time', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _selectedTime.format(context),
+                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.green),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: _selectedTime,
+                              );
+                              if (time != null) {
+                                setState(() => _selectedTime = time);
+                              }
+                            },
+                            icon: const Icon(Icons.schedule),
+                            label: const Text('Change Time'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Submit Button
+                    ElevatedButton.icon(
+                      onPressed: _recordTimeIn,
+                      icon: const Icon(Icons.check),
+                      label: const Text('Record Time In'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// TIME OUT PAGE - Separate page para sa clock out
+class TimeOutPage extends StatefulWidget {
+  const TimeOutPage({super.key});
+
+  @override
+  State<TimeOutPage> createState() => _TimeOutPageState();
+}
+
+class _TimeOutPageState extends State<TimeOutPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+  TimeOfDay _selectedTime = TimeOfDay.now();
+
+  void _recordTimeOut() {
+    if (!_formKey.currentState!.validate()) return;
+
+    final workerName = _nameCtrl.text.trim();
+    
+    // Find existing record para sa worker ngayong araw
+    final existingRecord = attendanceRecords.firstWhere(
+      (a) => a.workerName.toLowerCase() == workerName.toLowerCase() &&
+          a.date.year == DateTime.now().year &&
+          a.date.month == DateTime.now().month &&
+          a.date.day == DateTime.now().day,
+      orElse: () => Attendance(
+        id: attendanceRecords.length + 1,
+        workerName: workerName,
+        date: DateTime.now(),
+        timeIn: null,
+      ),
+    );
+
+    if (attendanceRecords.contains(existingRecord)) {
+      // Update existing record
+      existingRecord.timeOut = _selectedTime;
+    } else {
+      // Create new record with only time out (no time in)
+      attendanceRecords.add(Attendance(
+        id: attendanceRecords.length + 1,
+        workerName: workerName,
+        date: DateTime.now(),
+        timeOut: _selectedTime,
+        status: 'Present',
+      ));
+    }
+
+    _nameCtrl.clear();
+    setState(() => _selectedTime = TimeOfDay.now());
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('$workerName - Time Out recorded at ${_selectedTime.format(context)}')),
+    );
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Center(
+        child: Card(
+          elevation: 8,
+          child: SizedBox(
+            width: 500,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.logout, size: 48, color: Colors.orange),
+                    const SizedBox(height: 16),
+                    const Text('TIME OUT', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 24),
+
+                    // Worker Name Input
+                    TextFormField(
+                      controller: _nameCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Worker Name',
+                        hintText: 'Enter your name',
+                        prefixIcon: Icon(Icons.person),
+                        border: OutlineInputBorder(),
+                      ),
+                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Time Display
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade100,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Column(
+                        children: [
+                          const Text('Current Time', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                          const SizedBox(height: 8),
+                          Text(
+                            _selectedTime.format(context),
+                            style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.orange),
+                          ),
+                          const SizedBox(height: 12),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              final time = await showTimePicker(
+                                context: context,
+                                initialTime: _selectedTime,
+                              );
+                              if (time != null) {
+                                setState(() => _selectedTime = time);
+                              }
+                            },
+                            icon: const Icon(Icons.schedule),
+                            label: const Text('Change Time'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Submit Button
+                    ElevatedButton.icon(
+                      onPressed: _recordTimeOut,
+                      icon: const Icon(Icons.check),
+                      label: const Text('Record Time Out'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Add Attendance Page (for manual entry)
 class AddAttendancePage extends StatefulWidget {
   const AddAttendancePage({super.key});
 
@@ -654,7 +975,7 @@ class AddAttendancePage extends StatefulWidget {
 
 class _AddAttendancePageState extends State<AddAttendancePage> {
   final _formKey = GlobalKey<FormState>();
-  int? _selectedStaffId;
+  final _nameCtrl = TextEditingController();
   TimeOfDay? _timeIn;
   TimeOfDay? _timeOut;
   String _status = 'Present';
@@ -662,16 +983,14 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
 
   void _saveAttendance() {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedStaffId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a staff member')));
+    if (_nameCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter worker name')));
       return;
     }
 
-    final staff = sampleStaff.firstWhere((s) => s.id == _selectedStaffId);
     final newAttendance = Attendance(
       id: attendanceRecords.length + 1,
-      staffId: _selectedStaffId!,
-      staffName: staff.name,
+      workerName: _nameCtrl.text.trim(),
       date: DateTime.now(),
       timeIn: _timeIn,
       timeOut: _timeOut,
@@ -681,11 +1000,12 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
 
     attendanceRecords.add(newAttendance);
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance added successfully')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance record added')));
   }
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -693,22 +1013,18 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Attendance')),
+      appBar: AppBar(title: const Text('Add Attendance Record')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              // Staff Selection
-              DropdownButtonFormField<int>(
-                value: _selectedStaffId,
-                decoration: const InputDecoration(labelText: 'Select Staff Member'),
-                items: sampleStaff
-                    .map((s) => DropdownMenuItem(value: s.id, child: Text(s.name)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedStaffId = v),
-                validator: (v) => v == null ? 'Select a staff member' : null,
+              // Worker Name
+              TextFormField(
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Worker Name', prefixIcon: Icon(Icons.person)),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter worker name' : null,
               ),
               const SizedBox(height: 16),
 
@@ -754,9 +1070,10 @@ class _AddAttendancePageState extends State<AddAttendancePage> {
               const SizedBox(height: 24),
 
               // Save Button
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: _saveAttendance,
-                child: const Text('Save Attendance'),
+                icon: const Icon(Icons.save),
+                label: const Text('Save Record'),
               ),
             ],
           ),
@@ -777,6 +1094,7 @@ class EditAttendancePage extends StatefulWidget {
 
 class _EditAttendancePageState extends State<EditAttendancePage> {
   final _formKey = GlobalKey<FormState>();
+  late TextEditingController _nameCtrl;
   late TimeOfDay? _timeIn;
   late TimeOfDay? _timeOut;
   late String _status;
@@ -785,6 +1103,7 @@ class _EditAttendancePageState extends State<EditAttendancePage> {
   @override
   void initState() {
     super.initState();
+    _nameCtrl = TextEditingController(text: widget.attendance.workerName);
     _timeIn = widget.attendance.timeIn;
     _timeOut = widget.attendance.timeOut;
     _status = widget.attendance.status;
@@ -796,6 +1115,7 @@ class _EditAttendancePageState extends State<EditAttendancePage> {
 
     final index = attendanceRecords.indexWhere((a) => a.id == widget.attendance.id);
     if (index != -1) {
+      attendanceRecords[index].workerName = _nameCtrl.text.trim();
       attendanceRecords[index].timeIn = _timeIn;
       attendanceRecords[index].timeOut = _timeOut;
       attendanceRecords[index].status = _status;
@@ -803,11 +1123,12 @@ class _EditAttendancePageState extends State<EditAttendancePage> {
     }
 
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance updated successfully')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance record updated')));
   }
 
   @override
   void dispose() {
+    _nameCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
@@ -815,18 +1136,18 @@ class _EditAttendancePageState extends State<EditAttendancePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Attendance')),
+      appBar: AppBar(title: const Text('Edit Attendance Record')),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
-              // Staff Name (Read-only)
+              // Worker Name
               TextFormField(
-                initialValue: widget.attendance.staffName,
-                enabled: false,
-                decoration: const InputDecoration(labelText: 'Staff Member'),
+                controller: _nameCtrl,
+                decoration: const InputDecoration(labelText: 'Worker Name', prefixIcon: Icon(Icons.person)),
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter worker name' : null,
               ),
               const SizedBox(height: 16),
 
@@ -872,9 +1193,10 @@ class _EditAttendancePageState extends State<EditAttendancePage> {
               const SizedBox(height: 24),
 
               // Update Button
-              ElevatedButton(
+              ElevatedButton.icon(
                 onPressed: _updateAttendance,
-                child: const Text('Update Attendance'),
+                icon: const Icon(Icons.save),
+                label: const Text('Update Record'),
               ),
             ],
           ),
